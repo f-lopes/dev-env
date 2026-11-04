@@ -1,0 +1,9 @@
+[env]
+MISE_DATA_DIR = "{{configDir}}/data"
+
+[tools]
+# Add your tools here
+# e.g.,
+# python = "3.12"
+# node = "20"
+# java = "17"
