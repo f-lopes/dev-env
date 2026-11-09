@@ -1,56 +1,21 @@
-[env]
-MISE_DATA_DIR = "{{config_root}}/data"
+# =============================================================================
+# Project-scoped tools.
+#
+# Everyday tools (java, maven, go, terraform, starship, the CLI utilities and
+# the Kubernetes tools) live in the chezmoi-managed global config at
+# ~/.config/mise/config.toml, which is the source of truth for them. Only
+# chezmoi (needed to bootstrap that config) and heavy, occasional tools are
+# declared here.
+# =============================================================================
 
 [tools]
-# =============================================================================
-# Core plugins (built-in)
-# =============================================================================
-java = "corretto-17"      # Amazon Corretto JDK 17
-maven = "3.9.9"           # Java build tool
-go = "1.21"               # Go programming language
-terraform = "latest"      # Infrastructure as code
-starship = "latest"       # Cross-shell prompt
-ripgrep = "latest"        # Fast grep alternative
-bat = "latest"            # Cat with syntax highlighting
-gh = "latest"             # GitHub CLI
-chezmoi = "latest"        # Dotfiles manager
-cmake = "latest"          # Build system generator
-
-# =============================================================================
-# Aqua registry — existing tools from tools-to-install.md
-# =============================================================================
-"aqua:junegunn/fzf" = "latest"                  # Command-line fuzzy finder
-"aqua:casey/just" = "latest"                    # Command runner (justfile)
-"aqua:go-task/task" = "latest"                  # Task runner / Makefile alternative
-# 1Password CLI — moved to bootstrap.packages (brew-cask:1password-cli) because aqua-registry is unavailable
-"aqua:sharkdp/fd" = "latest"                    # Find alternative
-"aqua:jesseduffield/lazygit" = "latest"         # Terminal UI for git
-
-# =============================================================================
-# Aqua registry — new tools for Java/DevOps workflow
-# =============================================================================
-"aqua:zellij" = "latest"                        # Terminal multiplexer (replaces tmux)
-"aqua:ajeetdsouza/zoxide" = "latest"            # Smart cd command
-"aqua:kubernetes/kubernetes/kubectl" = "latest" # Kubernetes CLI
-"aqua:helm/helm" = "latest"                     # Kubernetes package manager
-"aqua:derailed/k9s" = "latest"                  # Kubernetes cluster UI
+chezmoi = "latest"                              # Dotfiles manager (applies the global config)
+cmake = "latest"                                # Build system generator
 "aqua:kubernetes-sigs/kind" = "latest"          # Kubernetes in Docker (local clusters)
 "aqua:GoogleContainerTools/skaffold" = "latest" # Kubernetes dev workflow
-"aqua:ahmetb/kubectx" = "latest"                # Kubernetes context/namespace switcher
-"aqua:mozilla/sops" = "latest"                  # Encrypted secrets management
-"aqua:infracost/infracost" = "latest"           # Terraform cost estimates
-"aqua:koalaman/shellcheck" = "latest"           # Shell script linting
 "aqua:aquasecurity/trivy" = "latest"            # Container security scanning
-
-# =============================================================================
-# npm backend
-# =============================================================================
+"aqua:infracost/infracost" = "latest"           # Terraform cost estimates
 "npm:@jetbrains/junie-cli" = { version = "latest", allow_low_downloads = true }  # Junie CLI
-
-# =============================================================================
-# Aqua registry — HTTP client (replaces pipx:httpie, no Python needed)
-# =============================================================================
-"aqua:nojima/httpie-go" = "latest"             # HTTP client CLI (Go-based, no Python needed)
 
 # =============================================================================
 # Excluded tools (per user request)
@@ -71,27 +36,42 @@ cmake = "latest"          # Build system generator
 
 [bootstrap.packages]
 # macOS packages
-"brew:zsh" = "latest"
-"brew:git" = "latest"
-"brew:htop" = "latest"
-"brew:vagrant" = "latest"
-"brew-cask:orbstack" = "latest"   # Replaces Docker Desktop; bundles Docker CLI
-"brew-cask:raycast" = "latest"    # macOS launcher app
-"brew-cask:ghostty" = "latest"    # Modern terminal emulator
-"brew-cask:warp" = "latest"       # Modern GPU-accelerated terminal
-"brew-cask:1password-cli" = "latest"  # 1Password CLI (op command)
+"brew:zsh" = { version = "latest", os = "macos" }
+"brew:git" = { version = "latest", os = "macos" }
+"brew:htop" = { version = "latest", os = "macos" }
+"brew-cask:vagrant" = { version = "latest", os = "macos" }       # Cask, not a formula
+"brew-cask:orbstack" = { version = "latest", os = "macos" }      # Replaces Docker Desktop; bundles Docker CLI
+"brew-cask:raycast" = { version = "latest", os = "macos" }       # macOS launcher app
+"brew-cask:ghostty" = { version = "latest", os = "macos" }       # Modern terminal emulator
+"brew-cask:warp" = { version = "latest", os = "macos" }          # Modern GPU-accelerated terminal
+"brew-cask:1password-cli" = { version = "latest", os = "macos" } # 1Password CLI (op command)
 
 # Linux packages
-"apt:zsh" = "latest"
-"apt:git" = "latest"
-"apt:curl" = "latest"
-"apt:htop" = "latest"
-"apt:vagrant" = "latest"
-"apt:docker-ce" = "latest"        # Docker runtime (OrbStack is macOS-only)
-"apt:build-essential" = "latest"
-"apt:sudo" = "latest"
-"apt:software-properties-common" = "latest"
-"apt:acl" = "latest"
+"apt:zsh" = { version = "latest", os = "linux" }
+"apt:git" = { version = "latest", os = "linux" }
+"apt:curl" = { version = "latest", os = "linux" }
+"apt:htop" = { version = "latest", os = "linux" }
+"apt:vagrant" = { version = "latest", os = "linux" }
+"apt:docker-ce" = { version = "latest", os = "linux" }           # Docker runtime (OrbStack is macOS-only)
+"apt:build-essential" = { version = "latest", os = "linux" }
+"apt:sudo" = { version = "latest", os = "linux" }
+"apt:software-properties-common" = { version = "latest", os = "linux" }
+"apt:acl" = { version = "latest", os = "linux" }
+
+# =============================================================================
+# Bootstrap repos — cloned before tools, applied by the post-tools hook
+# =============================================================================
+
+[bootstrap.repos."{{env.HOME}}/.local/share/chezmoi"]
+url = "{{ env.CHEZMOI_DOTFILES_REPO | default(value='https://github.com/f-lopes/dotfiles.git') }}"
+ref = "main"
+
+# =============================================================================
+# Bootstrap user — login shell
+# =============================================================================
+
+[bootstrap.user]
+login_shell = "zsh"
 
 # =============================================================================
 # Bootstrap hooks — run after packages are installed
@@ -105,25 +85,20 @@ run = """
     echo "✓ Oh My Zsh installed"
   fi
 
-  # Nerd Fonts installation (macOS only)
+  # Nerd Fonts installation (macOS only); non-fatal so a cask hiccup does not
+  # abort the whole bootstrap run
   if [[ "$(uname)" == "Darwin" ]] && command -v brew >/dev/null 2>&1; then
-    brew install --cask font-hack-nerd-font
-    brew install --cask font-jetbrains-mono-nerd-font
+    brew install --cask font-hack-nerd-font || true
+    brew install --cask font-jetbrains-mono-nerd-font || true
     echo "✓ Nerd Fonts installed"
   fi
 """
 
 [bootstrap.hooks.post-tools]
 run = """
-  # chezmoi dotfiles initialization
-  if command -v chezmoi >/dev/null 2>&1; then
-    DOTFILES_REPO="${CHEZMOI_DOTFILES_REPO:-https://github.com/f-lopes/dotfiles.git}"
-    if [ ! -d "$HOME/.local/share/chezmoi" ]; then
-      chezmoi init "$DOTFILES_REPO"
-      chezmoi apply
-      echo "✓ chezmoi dotfiles applied from $DOTFILES_REPO"
-    else
-      echo "⚠️  chezmoi already initialized, skipping"
-    fi
+  # Apply the dotfiles checkout cloned by [bootstrap.repos]
+  if command -v chezmoi >/dev/null 2>&1 && [ -d "$HOME/.local/share/chezmoi" ]; then
+    chezmoi apply --source "$HOME/.local/share/chezmoi"
+    echo "✓ chezmoi dotfiles applied"
   fi
 """

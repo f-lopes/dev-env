@@ -4,16 +4,29 @@ Development environment configuration managed by [mise](https://mise.jdx.dev/).
 
 ## Setup
 
+On a fresh machine, two commands are enough:
+
 1. Install mise: `curl https://mise.run | sh`
-2. Install system packages: `mise bootstrap apply`
-3. Install tools: `mise install`
-4. Apply environment: `mise env --activate`
+2. Bootstrap everything: `mise bootstrap`
+
+`mise bootstrap` installs the system packages, runs the post-package hooks
+(Oh My Zsh, Nerd Fonts), clones the dotfiles repository, sets zsh as the login
+shell, installs the tools, and finally applies the dotfiles with chezmoi.
+Preview it first with `mise bootstrap --dry-run`.
 
 ## Tools
 
-All development tools are defined in `.mise.toml`. The configuration includes:
+Tools are split across two manifests:
 
-### Core Tools
+- **`~/.config/mise/config.toml`** (managed by
+  [chezmoi dotfiles](https://github.com/f-lopes/dotfiles)) is the source of
+  truth for everyday tools and is available from any directory.
+- **`.mise.toml`** in this repository holds the bootstrap configuration and the
+  heavy, project-scoped tools.
+
+Both share mise's default data directory, so nothing is downloaded twice.
+
+### Everyday Tools (global config)
 | Tool | Version | Backend |
 |------|---------|---------|
 | Java (Amazon Corretto) | corretto-17 | Core |
@@ -25,44 +38,28 @@ All development tools are defined in `.mise.toml`. The configuration includes:
 | bat | latest | Core |
 | GitHub CLI (gh) | latest | Core |
 | chezmoi | latest | Core |
-| CMake | latest | Core |
+| fzf, fd, just, task, lazygit | latest | Aqua |
+| zellij, zoxide | latest | Aqua |
+| kubectl, helm, k9s, kubectx, sops | latest | Aqua |
+| shellcheck | latest | Aqua |
+| httpie-go | latest | Aqua |
 
-### CLI Utilities (Aqua registry)
+### Project-Scoped Tools (`.mise.toml`)
 | Tool | Description |
 |------|-------------|
-| fzf | Command-line fuzzy finder |
-| just | Command runner (justfile) |
-| task (go-task) | Task runner / Makefile alternative |
-| 1Password CLI | Password manager CLI (via Homebrew cask) |
-| fd | Find alternative |
-| lazygit | Terminal UI for git |
-| zellij | Terminal multiplexer (replaces tmux) |
-| zoxide | Smart cd command |
-
-### Kubernetes & DevOps (Aqua registry)
-| Tool | Description |
-|------|-------------|
-| kubectl | Kubernetes CLI |
-| helm | Kubernetes package manager |
-| k9s | Kubernetes cluster UI |
+| chezmoi | Dotfiles manager (also global; needed to bootstrap) |
+| CMake | Build system generator |
 | kind | Kubernetes in Docker (local clusters) |
 | skaffold | Kubernetes dev workflow |
-| kubectx | Kubernetes context/namespace switcher |
-| sops | Encrypted secrets management |
-| infracost | Terraform cost estimates |
-| shellcheck | Shell script linting |
 | trivy | Container security scanning |
-
-### Other Backends
-| Tool | Backend |
-|------|---------|
+| infracost | Terraform cost estimates |
 | Junie CLI | npm:@jetbrains/junie-cli (allow_low_downloads) |
-| httpie-go | aqua:nojima/httpie-go (Go-based, no Python needed) |
 
-### System Packages (via `mise bootstrap apply`)
+### System Packages (via `mise bootstrap`)
 
 **macOS (Homebrew):**
-- zsh, git, htop, vagrant
+- zsh, git, htop
+- **Vagrant** — installed as a Homebrew cask
 - **OrbStack** — replaces Docker Desktop; bundles Docker CLI
 - **Raycast** — macOS launcher app
 - **1Password CLI** — password manager CLI (provides `op` command)
@@ -74,10 +71,14 @@ All development tools are defined in `.mise.toml`. The configuration includes:
 - **docker-ce** — Docker runtime (OrbStack is macOS-only)
 - build-essential, sudo, software-properties-common, acl
 
-### Post-Install Scripts
-- **Oh My Zsh** — auto-installed with default config
-- **Nerd Fonts** — Hack & JetBrains Mono (macOS only)
-- **chezmoi dotfiles** — initializes from `https://github.com/f-lopes/dotfiles.git` (override with `CHEZMOI_DOTFILES_REPO` env var)
+### Bootstrap Repos, Login Shell and Hooks
+- **`[bootstrap.repos]`** — clones `https://github.com/f-lopes/dotfiles.git`
+  into `~/.local/share/chezmoi` (override with the `CHEZMOI_DOTFILES_REPO` env
+  var)
+- **`[bootstrap.user]`** — sets zsh as the login shell
+- **post-packages hook** — Oh My Zsh, plus Hack & JetBrains Mono Nerd Fonts on
+  macOS (non-fatal)
+- **post-tools hook** — `chezmoi apply` against the cloned source
 
 ### Excluded Tools
 | Tool | Reason |
@@ -113,20 +114,34 @@ The easiest way to test is using the provided shell script:
 # Keep the VM running after the test (for manual inspection)
 ./scripts/test-mise-tart.sh --no-cleanup
 ./scripts/test-mise-tart.sh -n golden-gate
+
+# Show the available options
+./scripts/test-mise-tart.sh --help
 ```
+
+The flag and the macOS version can be given in any order.
 
 The script will:
 1. Clone and run an ephemeral macOS VM
 2. Wait for SSH to become available
 3. Install mise inside the VM
-4. Clone this repository and run `mise install`
-5. Report installed tools and their versions
-6. Clean up the VM automatically
+4. Clone this repository and run `mise bootstrap --yes`
+5. Assert that `~/.zshrc` and the `~/.config/zsh/zsh.d/` fragments were applied,
+   that `chezmoi source-path` resolves, that `java`, `kubectl`, `starship`,
+   `zellij` and `chezmoi` resolve in a login shell, and that the login shell is
+   zsh
+6. Run `mise bootstrap` a second time to verify idempotency
+7. Clean up the VM automatically, unless `--no-cleanup` is given
+
+The script exits with the remote commands' exit code, so a failed bootstrap or
+assertion fails the run.
 
 **Requirements:**
 - `tart` CLI installed
 - `sshpass` installed (`brew install sshpass`)
-- Git remote configured (or set `MISE_TEST_REPO` env var)
+- A git remote named `origin`, or `MISE_TEST_REPO` set — the script exits with
+  an error otherwise. An `scp`-style GitHub remote is rewritten to HTTPS,
+  because a fresh VM has no SSH keys.
 
 ### Accessing the VM via SSH
 
@@ -235,7 +250,7 @@ sshpass -p admin ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 sshpass -p admin ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@"$VM_IP" '~/.local/bin/mise doctor'
 
 # Clone and test (replace with your repo URL)
-sshpass -p admin ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@"$VM_IP" 'git clone <your-repo-url> /tmp/dev-env && cd /tmp/dev-env && ~/.local/bin/mise install && ~/.local/bin/mise doctor'
+sshpass -p admin ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@"$VM_IP" 'git clone <your-repo-url> /tmp/dev-env && cd /tmp/dev-env && ~/.local/bin/mise trust . && ~/.local/bin/mise bootstrap --yes && ~/.local/bin/mise doctor'
 ```
 
 3. Or SSH interactively:
