@@ -1,9 +1,129 @@
 [env]
-MISE_DATA_DIR = "{{configDir}}/data"
+MISE_DATA_DIR = "{{config_root}}/data"
 
 [tools]
-# Add your tools here
-# e.g.,
-# python = "3.12"
-# node = "20"
-# java = "17"
+# =============================================================================
+# Core plugins (built-in)
+# =============================================================================
+java = "corretto-17"      # Amazon Corretto JDK 17
+maven = "3.9.9"           # Java build tool
+go = "1.21"               # Go programming language
+terraform = "latest"      # Infrastructure as code
+starship = "latest"       # Cross-shell prompt
+ripgrep = "latest"        # Fast grep alternative
+bat = "latest"            # Cat with syntax highlighting
+gh = "latest"             # GitHub CLI
+chezmoi = "latest"        # Dotfiles manager
+cmake = "latest"          # Build system generator
+
+# =============================================================================
+# Aqua registry — existing tools from tools-to-install.md
+# =============================================================================
+"aqua:junegunn/fzf" = "latest"                  # Command-line fuzzy finder
+"aqua:casey/just" = "latest"                    # Command runner (justfile)
+"aqua:go-task/task" = "latest"                  # Task runner / Makefile alternative
+# 1Password CLI — moved to bootstrap.packages (brew-cask:1password-cli) because aqua-registry is unavailable
+"aqua:sharkdp/fd" = "latest"                    # Find alternative
+"aqua:jesseduffield/lazygit" = "latest"         # Terminal UI for git
+
+# =============================================================================
+# Aqua registry — new tools for Java/DevOps workflow
+# =============================================================================
+"aqua:zellij" = "latest"                        # Terminal multiplexer (replaces tmux)
+"aqua:ajeetdsouza/zoxide" = "latest"            # Smart cd command
+"aqua:kubernetes/kubernetes/kubectl" = "latest" # Kubernetes CLI
+"aqua:helm/helm" = "latest"                     # Kubernetes package manager
+"aqua:derailed/k9s" = "latest"                  # Kubernetes cluster UI
+"aqua:kubernetes-sigs/kind" = "latest"          # Kubernetes in Docker (local clusters)
+"aqua:GoogleContainerTools/skaffold" = "latest" # Kubernetes dev workflow
+"aqua:ahmetb/kubectx" = "latest"                # Kubernetes context/namespace switcher
+"aqua:mozilla/sops" = "latest"                  # Encrypted secrets management
+"aqua:infracost/infracost" = "latest"           # Terraform cost estimates
+"aqua:koalaman/shellcheck" = "latest"           # Shell script linting
+"aqua:aquasecurity/trivy" = "latest"            # Container security scanning
+
+# =============================================================================
+# npm backend
+# =============================================================================
+"npm:@jetbrains/junie-cli" = { version = "latest", allow_low_downloads = true }  # Junie CLI
+
+# =============================================================================
+# Aqua registry — HTTP client (replaces pipx:httpie, no Python needed)
+# =============================================================================
+"aqua:nojima/httpie-go" = "latest"             # HTTP client CLI (Go-based, no Python needed)
+
+# =============================================================================
+# Excluded tools (per user request)
+# =============================================================================
+# python  — excluded, will use Docker
+# ansible — excluded, will use Docker
+# tmux    — replaced by zellij
+
+# =============================================================================
+# GUI apps (not installable via mise, use bootstrap or manual install)
+# =============================================================================
+# ghostty — macOS GUI terminal, install via `brew install --cask ghostty`
+# warp    — macOS GUI terminal, install via `brew install --cask warp`
+
+# =============================================================================
+# Bootstrap — system packages managed by mise bootstrap
+# =============================================================================
+
+[bootstrap.packages]
+# macOS packages
+"brew:zsh" = "latest"
+"brew:git" = "latest"
+"brew:htop" = "latest"
+"brew:vagrant" = "latest"
+"brew-cask:orbstack" = "latest"   # Replaces Docker Desktop; bundles Docker CLI
+"brew-cask:raycast" = "latest"    # macOS launcher app
+"brew-cask:ghostty" = "latest"    # Modern terminal emulator
+"brew-cask:warp" = "latest"       # Modern GPU-accelerated terminal
+"brew-cask:1password-cli" = "latest"  # 1Password CLI (op command)
+
+# Linux packages
+"apt:zsh" = "latest"
+"apt:git" = "latest"
+"apt:curl" = "latest"
+"apt:htop" = "latest"
+"apt:vagrant" = "latest"
+"apt:docker-ce" = "latest"        # Docker runtime (OrbStack is macOS-only)
+"apt:build-essential" = "latest"
+"apt:sudo" = "latest"
+"apt:software-properties-common" = "latest"
+"apt:acl" = "latest"
+
+# =============================================================================
+# Bootstrap hooks — run after packages are installed
+# =============================================================================
+
+[bootstrap.hooks.post-packages]
+run = """
+  # Oh My Zsh installation and plugin configuration
+  if command -v zsh >/dev/null 2>&1 && [ ! -d "$HOME/.oh-my-zsh" ]; then
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+    echo "✓ Oh My Zsh installed"
+  fi
+
+  # Nerd Fonts installation (macOS only)
+  if [[ "$(uname)" == "Darwin" ]] && command -v brew >/dev/null 2>&1; then
+    brew install --cask font-hack-nerd-font
+    brew install --cask font-jetbrains-mono-nerd-font
+    echo "✓ Nerd Fonts installed"
+  fi
+"""
+
+[bootstrap.hooks.post-tools]
+run = """
+  # chezmoi dotfiles initialization
+  if command -v chezmoi >/dev/null 2>&1; then
+    DOTFILES_REPO="${CHEZMOI_DOTFILES_REPO:-https://github.com/f-lopes/dotfiles.git}"
+    if [ ! -d "$HOME/.local/share/chezmoi" ]; then
+      chezmoi init "$DOTFILES_REPO"
+      chezmoi apply
+      echo "✓ chezmoi dotfiles applied from $DOTFILES_REPO"
+    else
+      echo "⚠️  chezmoi already initialized, skipping"
+    fi
+  fi
+"""
