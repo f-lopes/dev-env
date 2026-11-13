@@ -97,6 +97,9 @@ run = """
 
 [bootstrap.hooks.post-tools]
 run = """
+  # Ensure Homebrew binaries (op, etc.) are in PATH for chezmoi templates
+  export PATH="/opt/homebrew/bin:$PATH"
+
   # Apply the dotfiles checkout cloned by [bootstrap.repos]
   if command -v chezmoi >/dev/null 2>&1 && [ -d "$HOME/.local/share/chezmoi" ]; then
     chezmoi apply --source "$HOME/.local/share/chezmoi"
