@@ -43,7 +43,8 @@ cmake = "latest"                                # Build system generator
 "brew-cask:orbstack" = { version = "latest", os = "macos" }      # Replaces Docker Desktop; bundles Docker CLI
 "brew-cask:raycast" = { version = "latest", os = "macos" }       # macOS launcher app
 "brew-cask:ghostty" = { version = "latest", os = "macos" }       # Modern terminal emulator
-"brew-cask:warp" = { version = "latest", os = "macos" }          # Modern GPU-accelerated terminal
+# warp — removed from bootstrap; app.warp.dev/download/brew returns 404.
+# Install manually: brew install --cask warp
 "brew-cask:1password-cli" = { version = "latest", os = "macos" } # 1Password CLI (op command)
 
 # Linux packages
