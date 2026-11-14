@@ -33,7 +33,7 @@ VM_NAME="mise-test-$(date +%Y%m%d-%H%M%S)"
 MEMORY_MB=16384  # 16 GB in megabytes
 TIMEOUT=600  # Max seconds to wait for SSH
 SSH_USER="admin"
-SSH_PASS="admin"  # Default password for Cirrus Labs base images
+SSH_PASS="admin"  # gitleaks:allow — default password for ephemeral Cirrus Labs base images
 
 # --- Argument parsing ---
 NO_CLEANUP="${NO_CLEANUP:-0}"

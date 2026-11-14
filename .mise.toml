@@ -1,21 +1,21 @@
 # =============================================================================
-# Project-scoped tools.
+# dev-env — machine bootstrap (macOS)
 #
-# Everyday tools (java, maven, go, terraform, starship, the CLI utilities and
-# the Kubernetes tools) live in the chezmoi-managed global config at
-# ~/.config/mise/config.toml, which is the source of truth for them. Only
-# chezmoi (needed to bootstrap that config) and heavy, occasional tools are
-# declared here.
+# Tools are split into three layers, each declared in exactly one place:
+#   1. System / GUI packages (git, zsh, op, OrbStack/docker, vagrant, raycast,
+#      ...)            -> [bootstrap.packages] below, installed via Homebrew.
+#   2. Global CLI tools (java, maven, kubectl, helm, terraform, node, kind,
+#      trivy, ...)     -> ~/.config/mise/config.toml, managed by chezmoi in the
+#                         dotfiles repo; installed by the post-tools hook.
+#   3. Per-project overrides (e.g. java = "corretto-21") -> each project's own
+#      .mise.toml.
+#
+# [tools] here only holds what this repo itself needs.
 # =============================================================================
 
 [tools]
 chezmoi = "latest"                              # Dotfiles manager (applies the global config)
-cmake = "latest"                                # Build system generator
-"aqua:kubernetes-sigs/kind" = "latest"          # Kubernetes in Docker (local clusters)
-"aqua:GoogleContainerTools/skaffold" = "latest" # Kubernetes dev workflow
-"aqua:aquasecurity/trivy" = "latest"            # Container security scanning
-"aqua:infracost/infracost" = "latest"           # Terraform cost estimates
-"npm:@jetbrains/junie-cli" = { version = "latest", allow_low_downloads = true }  # Junie CLI
+"aqua:gitleaks/gitleaks" = "latest"             # Secret scanning for the .githooks/pre-commit hook
 
 # =============================================================================
 # Excluded tools (per user request)
@@ -97,12 +97,22 @@ run = """
 
 [bootstrap.hooks.post-tools]
 run = """
-  # Ensure Homebrew binaries (op, etc.) are in PATH for chezmoi templates
-  export PATH="/opt/homebrew/bin:$PATH"
+  # Ensure Homebrew binaries (op, etc.) are in PATH for chezmoi templates.
+  # Apple Silicon prefix first, then Intel.
+  for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [ -x "$brew_bin" ]; then
+      eval "$("$brew_bin" shellenv)"
+      break
+    fi
+  done
 
   # Apply the dotfiles checkout cloned by [bootstrap.repos]
   if command -v chezmoi >/dev/null 2>&1 && [ -d "$HOME/.local/share/chezmoi" ]; then
     chezmoi apply --source "$HOME/.local/share/chezmoi"
     echo "✓ chezmoi dotfiles applied"
+
+    # Install the global toolset chezmoi just wrote to ~/.config/mise/config.toml.
+    # Run from $HOME so only the global config (not this repo's) is resolved.
+    (cd "$HOME" && mise install) && echo "✓ global mise tools installed"
   fi
 """
