@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# pre-commit — scans staged changes for secrets with gitleaks.
+#
+# Install (once per clone):
+#   git config core.hooksPath .githooks
+#
+# gitleaks is declared in this repo's .mise.toml; `mise install` provides it.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+CONFIG="$REPO_ROOT/.gitleaks.toml"
+
+# Prefer the mise-managed gitleaks so the hook works even when mise is not
+# activated in the calling shell (IDE commits, GUI git clients).
+if command -v mise >/dev/null 2>&1 && mise which gitleaks >/dev/null 2>&1; then
+    GITLEAKS=(mise exec -- gitleaks)
+elif command -v gitleaks >/dev/null 2>&1; then
+    GITLEAKS=(gitleaks)
+else
+    echo "⚠️  gitleaks not found — skipping secret scan."
+    echo "   Install it with: mise install   (from $REPO_ROOT)"
+    exit 0
+fi
+
+if [ ! -f "$CONFIG" ]; then
+    echo "⚠️  .gitleaks.toml not found at $CONFIG — skipping secret scan."
+    exit 0
+fi
+
+echo "→ Scanning staged changes for secrets..."
+
+if "${GITLEAKS[@]}" git --staged --config "$CONFIG" --redact --verbose; then
+    echo "✓ No secrets detected"
+else
+    echo ""
+    echo "❌ Secret detected in staged changes!"
+    echo "   Fix the leak, or mark a known false positive with a"
+    echo "   '# gitleaks:allow' comment on that line."
+    echo "   To bypass once: git commit --no-verify"
+    exit 1
+fi

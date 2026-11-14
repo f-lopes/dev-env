@@ -1,0 +1,7 @@
+# Gitleaks configuration for dev-env
+#
+# Extends gitleaks' built-in default ruleset. Mark known false positives inline
+# with a `# gitleaks:allow` comment rather than allowlisting whole files.
+
+[extend]
+useDefault = true
