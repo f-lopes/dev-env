@@ -4,35 +4,52 @@ Development environment configuration managed by [mise](https://mise.jdx.dev/).
 
 ## Setup
 
-On a fresh machine, two commands are enough:
+On a fresh macOS machine:
 
 1. Install mise: `curl https://mise.run | sh`
-2. Bootstrap everything: `mise bootstrap`
+2. Clone this repository, `cd` into it and run `mise trust .`
+3. Bootstrap everything: `mise bootstrap --yes`. Preview it first with
+   `mise bootstrap --dry-run`.
+4. Open a new terminal so the managed `~/.zprofile` and `~/.zshrc` load.
+5. Set up 1Password (see [1Password](#1password)), then run `chezmoi apply`
+   to render the 1Password-backed dotfiles.
 
 `mise bootstrap` installs the system packages, runs the post-package hooks
 (Oh My Zsh, Nerd Fonts), clones the dotfiles repository, sets zsh as the login
-shell, installs the tools, and finally applies the dotfiles with chezmoi.
-Preview it first with `mise bootstrap --dry-run`.
+shell, installs this repository's tools, applies the dotfiles with chezmoi and
+finally installs the global tools from `~/.config/mise/config.toml`.
+See [fresh-test.md](fresh-test.md) for a step-by-step walkthrough.
 
 ## Tools
 
-Tools are split across two manifests:
+Each tool is declared in exactly one of three layers:
 
-- **`~/.config/mise/config.toml`** (managed by
-  [chezmoi dotfiles](https://github.com/f-lopes/dotfiles)) is the source of
-  truth for everyday tools and is available from any directory.
-- **`.mise.toml`** in this repository holds the bootstrap configuration and the
-  heavy, project-scoped tools.
+| Layer | Declared in | Examples |
+|-------|-------------|----------|
+| 1. System and GUI packages | `[bootstrap.packages]` in this repository's `.mise.toml` (Homebrew) | git, zsh, op, OrbStack (docker, docker-compose), Vagrant, Raycast |
+| 2. Global CLI tools | `~/.config/mise/config.toml`, managed by the [dotfiles](https://github.com/f-lopes/dotfiles) repository | Java, Maven, kubectl, Helm, Terraform, Node |
+| 3. Per-project overrides | each project's own `.mise.toml` | `java = "corretto-21"`, `node = "22"` |
 
-Both share mise's default data directory, so nothing is downloaded twice.
+Layers 1 and 2 are available from any directory. A project's `.mise.toml`
+overrides a global version only inside that project, for example:
 
-### Everyday Tools (global config)
+```toml
+# ~/work/git/my-project/.mise.toml
+[tools]
+java = "corretto-21"
+```
+
+All layers share mise's data directory, so nothing is downloaded twice.
+
+### Global Tools (`~/.config/mise/config.toml`)
 | Tool | Version | Backend |
 |------|---------|---------|
-| Java (Amazon Corretto) | corretto-17 | Core |
+| Java (Amazon Corretto) | corretto-17 (default), corretto-21, corretto-25 | Core |
 | Maven | 3.9.9 | Core |
 | Go | 1.21 | Core |
+| Node | lts (needed by `npm:` tools) | Core |
 | Terraform | latest | Core |
+| CMake | latest | Core |
 | Starship | latest | Core |
 | ripgrep | latest | Core |
 | bat | latest | Core |
@@ -41,44 +58,57 @@ Both share mise's default data directory, so nothing is downloaded twice.
 | fzf, fd, just, task, lazygit | latest | Aqua |
 | zellij, zoxide | latest | Aqua |
 | kubectl, helm, k9s, kubectx, sops | latest | Aqua |
+| kind, skaffold, trivy, infracost | latest | Aqua |
 | shellcheck | latest | Aqua |
 | httpie-go | latest | Aqua |
+| Junie CLI | latest | npm |
 
-### Project-Scoped Tools (`.mise.toml`)
-| Tool | Description |
-|------|-------------|
-| chezmoi | Dotfiles manager (also global; needed to bootstrap) |
-| CMake | Build system generator |
-| kind | Kubernetes in Docker (local clusters) |
-| skaffold | Kubernetes dev workflow |
-| trivy | Container security scanning |
-| infracost | Terraform cost estimates |
-| Junie CLI | npm:@jetbrains/junie-cli (allow_low_downloads) |
+The first Java version in the list is the global default. All three are
+installed, so a project can switch to another one without a download.
+
+### This Repository's Tools (`.mise.toml`)
+| Tool | Purpose |
+|------|---------|
+| chezmoi | Applies the dotfiles during bootstrap |
+| gitleaks | Secret scanning for the pre-commit hook |
 
 ### System Packages (via `mise bootstrap`)
 
 **macOS (Homebrew):**
 - zsh, git, htop
-- **Vagrant** — installed as a Homebrew cask
-- **OrbStack** — replaces Docker Desktop; bundles Docker CLI
-- **Raycast** — macOS launcher app
-- **1Password CLI** — password manager CLI (provides `op` command)
-- **Ghostty** — modern terminal emulator
-- **Warp** — modern GPU-accelerated terminal
+- **Vagrant**: Homebrew cask
+- **OrbStack**: replaces Docker Desktop and provides the `docker` and
+  `docker-compose` CLIs (linked on the app's first launch)
+- **Raycast**: macOS launcher app
+- **1Password** and **1Password CLI**: the app and the `op` command
+- **Ghostty**: modern terminal emulator
 
 **Linux (apt):**
 - zsh, git, curl, htop, vagrant
-- **docker-ce** — Docker runtime (OrbStack is macOS-only)
+- **docker-ce**: Docker runtime (OrbStack is macOS-only)
 - build-essential, sudo, software-properties-common, acl
 
 ### Bootstrap Repos, Login Shell and Hooks
-- **`[bootstrap.repos]`** — clones `https://github.com/f-lopes/dotfiles.git`
-  into `~/.local/share/chezmoi` (override with the `CHEZMOI_DOTFILES_REPO` env
-  var)
-- **`[bootstrap.user]`** — sets zsh as the login shell
-- **post-packages hook** — Oh My Zsh, plus Hack & JetBrains Mono Nerd Fonts on
-  macOS (non-fatal)
-- **post-tools hook** — `chezmoi apply` against the cloned source
+- **`[bootstrap.repos]`** clones `https://github.com/f-lopes/dotfiles.git`
+  into `~/.local/share/chezmoi`. Override it with the `CHEZMOI_DOTFILES_REPO`
+  env var.
+- **`[bootstrap.user]`** sets zsh as the login shell.
+- **post-packages hook** installs Oh My Zsh and, on macOS, the Hack and
+  JetBrains Mono Nerd Fonts (non-fatal).
+- **post-tools hook** loads Homebrew's environment, checks that 1Password is
+  usable, runs `chezmoi apply` against the cloned source, then runs
+  `mise install` from `$HOME` to install the global tools.
+
+### 1Password
+
+Some dotfiles (currently `~/.ssh/config`) read values from 1Password with the
+`op` CLI. On a fresh machine 1Password is not signed in yet, so the post-tools
+hook skips those parts (it sets `CHEZMOI_SKIP_1PASSWORD=1`) instead of
+failing, and prints what to do. To finish:
+
+1. Open the 1Password app and sign in.
+2. Enable **Settings → Developer → Integrate with 1Password CLI**.
+3. Run `chezmoi apply`.
 
 ### Excluded Tools
 | Tool | Reason |
@@ -86,15 +116,28 @@ Both share mise's default data directory, so nothing is downloaded twice.
 | Python | Will use Docker |
 | Ansible | Will use Docker |
 | tmux | Replaced by zellij |
-| SDKMan | Replaced by mise Java management |
+| SDKMAN | Replaced by mise Java management |
 
 ### GUI Apps (manual install)
 | App | Install Command |
 |-----|-----------------|
-| Ghostty | `brew install --cask ghostty` |
-| Warp | `brew install --cask warp` |
+| Warp | `brew install --cask warp` (its Homebrew download currently returns 404) |
 
-> 💡 **Tip:** Use [tart.run](#testing-with-tart-run) to test your `.mise.toml` configuration in a clean, isolated macOS VM before committing changes.
+## Secret Scanning
+
+[gitleaks](https://github.com/gitleaks/gitleaks) scans for secrets with its
+default rules, configured in `.gitleaks.toml`.
+
+- **Pre-commit hook:** enable it once per clone with
+  `git config core.hooksPath .githooks`. It scans staged changes and blocks
+  the commit if it finds a secret. Bypass once with `git commit --no-verify`.
+- **CI:** `.github/workflows/ci.yml` scans the full history on pushes to
+  `main` and on pull requests, and also runs shellcheck and a bootstrap
+  dry-run.
+- **False positives:** add a `# gitleaks:allow` comment on the line rather
+  than allowlisting a whole file.
+
+> 💡 **Tip:** Use [tart.run](#testing-with-tart-run) to test the bootstrap in a clean, isolated macOS VM. The VM clones both repositories from GitHub, so push your changes first.
 
 ## Testing with tart.run
 
@@ -127,9 +170,13 @@ The script will:
 3. Install mise inside the VM
 4. Clone this repository and run `mise bootstrap --yes`
 5. Assert that `~/.zshrc` and the `~/.config/zsh/zsh.d/` fragments were applied,
-   that `chezmoi source-path` resolves, that `java`, `kubectl`, `starship`,
-   `zellij` and `chezmoi` resolve in a login shell, and that the login shell is
-   zsh
+   that `chezmoi source-path` resolves, that the global tools (`java`, `mvn`,
+   `kubectl`, `node`, `starship`, `zellij`, `chezmoi`, `op`, `git`) resolve in
+   a login shell, that `java`, `mvn` and `kubectl` also resolve in a
+   non-interactive login shell, that `~/.ssh/config` was rendered (without the
+   1Password hosts, since the VM has no account), and that the login shell is
+   zsh. `docker` is not checked, because OrbStack only links its CLI on the
+   app's first launch.
 6. Run `mise bootstrap` a second time to verify idempotency
 7. Clean up the VM automatically, unless `--no-cleanup` is given
 

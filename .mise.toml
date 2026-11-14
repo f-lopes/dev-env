@@ -27,8 +27,8 @@ chezmoi = "latest"                              # Dotfiles manager (applies the 
 # =============================================================================
 # GUI apps (not installable via mise, use bootstrap or manual install)
 # =============================================================================
-# ghostty — macOS GUI terminal, install via `brew install --cask ghostty`
-# warp    — macOS GUI terminal, install via `brew install --cask warp`
+# warp — macOS GUI terminal, install via `brew install --cask warp`
+#        (its Homebrew download URL currently returns 404)
 
 # =============================================================================
 # Bootstrap — system packages managed by mise bootstrap
@@ -45,6 +45,7 @@ chezmoi = "latest"                              # Dotfiles manager (applies the 
 "brew-cask:ghostty" = { version = "latest", os = "macos" }       # Modern terminal emulator
 # warp — removed from bootstrap; app.warp.dev/download/brew returns 404.
 # Install manually: brew install --cask warp
+"brew-cask:1password" = { version = "latest", os = "macos" }     # 1Password app (needed for op's app integration)
 "brew-cask:1password-cli" = { version = "latest", os = "macos" } # 1Password CLI (op command)
 
 # Linux packages
@@ -105,6 +106,20 @@ run = """
       break
     fi
   done
+
+  # Templates reading 1Password (e.g. ~/.ssh/config) need the op CLI and a
+  # configured account. On a fresh machine neither may be ready yet, so skip
+  # those parts instead of aborting the whole bootstrap.
+  if ! command -v op >/dev/null 2>&1; then
+    echo "⚠ op (1Password CLI) not found on PATH; check: brew list --cask 1password-cli"
+    echo "  Skipping 1Password-backed dotfiles; run 'chezmoi apply' once op is installed."
+    export CHEZMOI_SKIP_1PASSWORD=1
+  elif ! op account list --format=json 2>/dev/null | grep -q account_uuid; then
+    echo "⚠ No 1Password account configured for op yet."
+    echo "  Enable 1Password app > Settings > Developer > 'Integrate with 1Password CLI',"
+    echo "  then run 'chezmoi apply'. Skipping 1Password-backed dotfiles for now."
+    export CHEZMOI_SKIP_1PASSWORD=1
+  fi
 
   # Apply the dotfiles checkout cloned by [bootstrap.repos]
   if command -v chezmoi >/dev/null 2>&1 && [ -d "$HOME/.local/share/chezmoi" ]; then

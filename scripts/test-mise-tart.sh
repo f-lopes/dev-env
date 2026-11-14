@@ -21,7 +21,8 @@
 #   3. Installs mise inside the VM
 #   4. Clones this repository and runs `mise bootstrap --yes` (packages, hooks,
 #      repos, login shell, tools)
-#   5. Asserts the dotfiles were applied and key tools resolve in a login shell
+#   5. Asserts the dotfiles were applied and the global tools resolve in
+#      interactive and non-interactive login shells
 #   6. Re-runs `mise bootstrap --yes` to check idempotency
 #   7. Cleans up the VM after testing, unless --no-cleanup is given
 #
@@ -256,10 +257,29 @@ echo "✓ ${#fragments[@]} zsh fragments applied"
 chezmoi source-path >/dev/null 2>&1 || fail "chezmoi source-path does not resolve"
 echo "✓ chezmoi source path: $(chezmoi source-path)"
 
-for tool in java kubectl starship zellij chezmoi; do
+# Global tools: mise global config (java, mvn, kubectl, node, ...) and
+# Homebrew (op, git). docker is not checked: OrbStack only links its CLI on
+# first app launch, which a headless VM never does.
+for tool in java mvn kubectl node starship zellij chezmoi op git; do
     zsh -lic "command -v $tool" >/dev/null 2>&1 || fail "$tool does not resolve in a login shell"
     echo "✓ $tool resolves in a login shell"
 done
+
+# The same tools must resolve without an interactive shell (IDEs, zsh -l -c),
+# which relies on the mise shims added by ~/.zprofile.
+for tool in java mvn kubectl; do
+    zsh -lc "command -v $tool" >/dev/null 2>&1 || fail "$tool does not resolve in a non-interactive login shell"
+    echo "✓ $tool resolves in a non-interactive login shell"
+done
+
+# A fresh VM has no 1Password account, so the bootstrap must skip the
+# 1Password-backed SSH hosts instead of failing.
+[ -f "$HOME/.ssh/config" ] || fail "~/.ssh/config was not created by chezmoi"
+if grep -q '^Host ' "$HOME/.ssh/config"; then
+    echo "✓ ~/.ssh/config rendered with 1Password hosts"
+else
+    echo "✓ ~/.ssh/config rendered without 1Password hosts (no account configured)"
+fi
 
 login_shell=$(dscl . -read "$HOME" UserShell 2>/dev/null | awk '{print $2}')
 case "$login_shell" in
