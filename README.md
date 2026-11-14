@@ -47,7 +47,7 @@ All layers share mise's data directory, so nothing is downloaded twice.
 | Java (Amazon Corretto) | corretto-17 (default), corretto-21, corretto-25 | Core |
 | Maven | 3.9.9 | Core |
 | Go | 1.21 | Core |
-| Node | lts (needed by `npm:` tools) | Core |
+| Node | 26 (latest LTS line; needed by `npm:` tools) | Core |
 | Terraform | latest | Core |
 | CMake | latest | Core |
 | Starship | latest | Core |
