@@ -281,6 +281,19 @@ else
     echo "✓ ~/.ssh/config rendered without 1Password hosts (no account configured)"
 fi
 
+# crit comes from the dotfiles' mise config; the chezmoi run_onchange script
+# installs its agent skills (and the Claude Code plugin when claude exists).
+zsh -lc 'crit --version' >/dev/null 2>&1 || fail "crit does not resolve in a non-interactive login shell"
+echo "✓ crit $(zsh -lc 'crit --version' | head -1)"
+[ -f "$HOME/.agents/skills/crit/SKILL.md" ] || fail "crit skills missing from ~/.agents/skills/"
+echo "✓ crit skills installed in ~/.agents/skills/"
+if zsh -lc 'command -v claude' >/dev/null 2>&1; then
+    zsh -lc 'claude plugin list' 2>/dev/null | grep -q 'crit@crit' || fail "crit@crit Claude Code plugin not installed"
+    echo "✓ crit@crit Claude Code plugin installed"
+else
+    echo "→ claude not installed in the VM; skipping the crit plugin check"
+fi
+
 login_shell=$(dscl . -read "$HOME" UserShell 2>/dev/null | awk '{print $2}')
 case "$login_shell" in
     *zsh) echo "✓ login shell is $login_shell" ;;

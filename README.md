@@ -62,6 +62,11 @@ All layers share mise's data directory, so nothing is downloaded twice.
 | shellcheck | latest | Aqua |
 | httpie-go | latest | Aqua |
 | Junie CLI | latest | npm |
+| Codex CLI | latest | npm |
+| crit | 0.23.3 (pinned) | GitHub |
+
+crit and its agent wiring (Claude Code plugin, Codex and Junie skills) come
+from the dotfiles' mise config and a chezmoi script; there is no manual step.
 
 The first Java version in the list is the global default. All three are
 installed, so a project can switch to another one without a download.
@@ -178,8 +183,9 @@ The script will:
    `kubectl`, `node`, `starship`, `zellij`, `chezmoi`, `op`, `git`) resolve in
    a login shell, that `java`, `mvn` and `kubectl` also resolve in a
    non-interactive login shell, that `~/.ssh/config` was rendered (without the
-   1Password hosts, since the VM has no account), and that the login shell is
-   zsh. `docker` is not checked, because OrbStack only links its CLI on the
+   1Password hosts, since the VM has no account), that `crit` resolves and its
+   skills are in `~/.agents/skills/` (plus the Claude Code plugin when `claude`
+   is installed), and that the login shell is zsh. `docker` is not checked, because OrbStack only links its CLI on the
    app's first launch.
 6. Run `mise bootstrap` a second time to verify idempotency
 7. Clean up the VM automatically, unless `--no-cleanup` is given
