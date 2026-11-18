@@ -82,6 +82,10 @@ installed, so a project can switch to another one without a download.
 - **Raycast**: macOS launcher app
 - **1Password** and **1Password CLI**: the app and the `op` command
 - **Ghostty**: modern terminal emulator
+- **Whiteboard** ([dev.fast](https://dev.fast/install)): cask from the
+  third-party tap `devdotfast/tap`. The post-packages hook installs it, because
+  mise can't evaluate third-party tap casks. The app updates itself, and its
+  welcome page installs the `whiteboard` command on first launch.
 
 **Linux (apt):**
 - zsh, git, curl, htop, vagrant
@@ -94,7 +98,7 @@ installed, so a project can switch to another one without a download.
   env var.
 - **`[bootstrap.user]`** sets zsh as the login shell.
 - **post-packages hook** installs Oh My Zsh and, on macOS, the Hack and
-  JetBrains Mono Nerd Fonts (non-fatal).
+  JetBrains Mono Nerd Fonts and the dev.fast Whiteboard cask (non-fatal).
 - **post-tools hook** loads Homebrew's environment, checks that 1Password is
   usable, runs `chezmoi apply` against the cloned source, then runs
   `mise install` from `$HOME` to install the global tools.
