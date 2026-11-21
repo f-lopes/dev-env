@@ -119,6 +119,22 @@ failing, and prints what to do. To finish:
 2. Enable **Settings → Developer → Integrate with 1Password CLI**.
 3. Run `chezmoi apply`.
 
+Coding agents don't use your account. They use a service account that can read
+only the `DEV-AGENTS` vault, and the dotfiles' agent wrappers refuse to start
+without its token. Copy it once from `Private` to the Keychain, from a normal
+terminal (not inside an agent):
+
+```sh
+security add-generic-password -U -a "$USER" -s op-sa-agent \
+  -w "$(op read 'op://Private/<service account item>/credential')"
+```
+
+Don't paste it at the interactive `-w` prompt, which cuts it off at 128
+characters.
+
+See the dotfiles README, "Coding agents: instructions and secrets", for the
+vault split and the service account setup.
+
 ### Excluded Tools
 | Tool | Reason |
 |------|--------|
